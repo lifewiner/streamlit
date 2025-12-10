@@ -7,65 +7,21 @@ import streamlit as st
 import numpy as np
 import pandas as pd
 import matplotlib
-
-# 在导入pyplot之前设置后端和字体
-matplotlib.use('agg')  # 使用agg后端，兼容性更好
 import matplotlib.pyplot as plt
 import seaborn as sns
 from datetime import datetime
 import json
 import os
-import platform
-
+from matplotlib import font_manager
 
 # ----------------- 全局初始化 -----------------
-# 解决中文字体显示问题的综合方案
-def setup_chinese_font():
-    """设置中文字体，兼容Windows、macOS和Linux/Docker环境"""
-    # 首先设置Seaborn主题
-    sns.set_theme(style="whitegrid")
+# 设置中文字体路径，确保在云环境中也能使用
+font_path = './SimHei.ttf'  # 假设字体文件与脚本在相同目录下
+prop = font_manager.FontProperties(fname=font_path)
 
-    # 根据操作系统设置不同的字体
-    system = platform.system()
-
-    if system == 'Windows':
-        # Windows系统常见中文字体
-        font_list = ['Microsoft YaHei', 'SimHei', 'SimSun', 'KaiTi', 'FangSong']
-        matplotlib.rcParams['font.sans-serif'] = font_list
-        matplotlib.rcParams['axes.unicode_minus'] = False
-        print(f"Windows系统: 使用字体 {font_list[0]}")
-
-    elif system == 'Darwin':
-        # macOS系统常见中文字体
-        font_list = ['Arial Unicode MS', 'PingFang SC', 'Hiragino Sans GB', 'Heiti SC']
-        matplotlib.rcParams['font.sans-serif'] = font_list
-        matplotlib.rcParams['axes.unicode_minus'] = False
-        print(f"macOS系统: 使用字体 {font_list[0]}")
-
-    else:
-        # Linux/Docker/其他系统
-        try:
-            # 尝试多种Linux系统中可能存在的字体
-            font_list = [
-                'WenQuanYi Micro Hei',
-                'Noto Sans CJK SC',
-                'DejaVu Sans',
-                'AR PL UMing CN',
-                'AR PL UKai CN',
-                'sans-serif'
-            ]
-            matplotlib.rcParams['font.sans-serif'] = font_list
-            matplotlib.rcParams['axes.unicode_minus'] = False
-            print(f"Linux/Docker系统: 使用字体 {font_list[0]}")
-        except Exception as e:
-            # 如果出错，使用默认字体
-            print(f"字体设置失败: {e}")
-            matplotlib.rcParams['font.sans-serif'] = ['DejaVu Sans']
-            matplotlib.rcParams['axes.unicode_minus'] = False
-
-
-# 调用字体设置函数
-setup_chinese_font()
+# 让 Streamlit 在 Docker/无桌面环境也能找得到中文字体
+matplotlib.rcParams['font.sans-serif'] = [prop.get_name()]  # 使用 SimHei 字体
+matplotlib.rcParams['axes.unicode_minus'] = False  # 解决负号显示问题
 
 # ----------------- 数据层 -----------------
 # 一级指标与权重（已做归一，总和=1）
@@ -198,20 +154,17 @@ def show_weight_page():
     st.header('数据素养指标权重')
     col1, col2 = st.columns(2)
     with col1:
-        fig, ax = plt.subplots(figsize=(8, 6))
+        fig, ax = plt.subplots()
         ax.bar(C['维度'], C['权重'], color='skyblue')
-        ax.set_ylabel('权重', fontsize=12)
-        ax.set_title('各维度权重分布', fontsize=14)
-        plt.xticks(rotation=45, ha='right', fontsize=10)
+        ax.set_ylabel('权重')
+        plt.xticks(rotation=45, ha='right')
         for i, v in enumerate(C['权重']):
-            ax.text(i, v + 0.01, f'{v:.3f}', ha='center', fontsize=9)
-        plt.tight_layout()
+            ax.text(i, v + 0.01, f'{v:.3f}', ha='center')
         st.pyplot(fig)
         plt.close(fig)
     with col2:
-        fig, ax = plt.subplots(figsize=(8, 6))
+        fig, ax = plt.subplots()
         ax.pie(C['权重'], labels=C['维度'], autopct='%.1f%%', startangle=90)
-        ax.set_title('各维度权重比例', fontsize=14)
         st.pyplot(fig)
         plt.close(fig)
 
@@ -251,7 +204,7 @@ def show_test_page():
                 ans.append(st.slider(f'{q}', 1, 6, 3, key=f'{code}_{j}'))
             st.session_state.answers[i] = ans
 
-    if st.button('提交测评', type='primary', use_container_width=True):
+    if st.button('提交测评', type='primary'):
         st.session_state.test_completed = True
         st.success('提交成功！请前往"查看结果"页面。')
         st.balloons()
@@ -283,15 +236,13 @@ def show_result_page():
         st.dataframe(pd.DataFrame({'维度': C['维度'], '得分': [f'{s:.2f}' for s in scores],
                                    '得分率': [f'{r:.2f}%' for r in rates]}))
     with col2:
-        fig, ax = plt.subplots(figsize=(10, 6))
+        fig, ax = plt.subplots()
         ax.bar(C['维度'], rates, color='lightgreen')
-        ax.set_ylabel('得分率(%)', fontsize=12)
-        ax.set_title('各维度得分率', fontsize=14)
-        plt.xticks(rotation=45, ha='right', fontsize=10)
+        ax.set_ylabel('得分率(%)')
+        plt.xticks(rotation=45, ha='right')
         ax.set_ylim(0, max(100, max(rates) * 1.05))
         for i, v in enumerate(rates):
-            ax.text(i, v + 1, f'{v:.1f}%', ha='center', fontsize=9)
-        plt.tight_layout()
+            ax.text(i, v + 1, f'{v:.1f}%', ha='center')
         st.pyplot(fig)
         plt.close(fig)
 
@@ -341,15 +292,13 @@ def show_group_portrait():
 
     # 箱线图
     sns.boxplot(data=dimension_df, x='维度', y='得分率', ax=ax1)
-    ax1.set_xticklabels(ax1.get_xticklabels(), rotation=45, ha='right', fontsize=10)
-    ax1.set_title('各维度得分率分布', fontsize=14)
-    ax1.set_ylabel('得分率(%)', fontsize=12)
+    ax1.set_xticklabels(ax1.get_xticklabels(), rotation=45, ha='right')
+    ax1.set_title('各维度得分率分布')
 
     # 小提琴图
     sns.violinplot(data=dimension_df, x='维度', y='得分率', ax=ax2)
-    ax2.set_xticklabels(ax2.get_xticklabels(), rotation=45, ha='right', fontsize=10)
-    ax2.set_title('各维度得分率密度分布', fontsize=14)
-    ax2.set_ylabel('得分率(%)', fontsize=12)
+    ax2.set_xticklabels(ax2.get_xticklabels(), rotation=45, ha='right')
+    ax2.set_title('各维度得分率密度分布')
 
     plt.tight_layout()
     st.pyplot(fig)
@@ -369,10 +318,8 @@ def show_group_portrait():
         major_df = pd.DataFrame(major_data)
         fig, ax = plt.subplots(figsize=(10, 6))
         sns.boxplot(data=major_df, x='专业', y='综合得分', ax=ax)
-        ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha='right', fontsize=10)
-        ax.set_title('各专业类别综合得分分布', fontsize=14)
-        ax.set_ylabel('综合得分', fontsize=12)
-        plt.tight_layout()
+        ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha='right')
+        ax.set_title('各专业类别综合得分分布')
         st.pyplot(fig)
         plt.close(fig)
 
@@ -390,10 +337,8 @@ def show_group_portrait():
         grade_df = pd.DataFrame(grade_data)
         fig, ax = plt.subplots(figsize=(10, 6))
         sns.boxplot(data=grade_df, x='年级', y='综合得分', ax=ax)
-        ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha='right', fontsize=10)
-        ax.set_title('各年级综合得分分布', fontsize=14)
-        ax.set_ylabel('综合得分', fontsize=12)
-        plt.tight_layout()
+        ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha='right')
+        ax.set_title('各年级综合得分分布')
         st.pyplot(fig)
         plt.close(fig)
 
@@ -411,10 +356,8 @@ def show_group_portrait():
         exp_df = pd.DataFrame(exp_data)
         fig, ax = plt.subplots(figsize=(10, 6))
         sns.boxplot(data=exp_df, x='数据经验', y='综合得分', ax=ax)
-        ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha='right', fontsize=10)
-        ax.set_title('不同数据经验水平综合得分分布', fontsize=14)
-        ax.set_ylabel('综合得分', fontsize=12)
-        plt.tight_layout()
+        ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha='right')
+        ax.set_title('不同数据经验水平综合得分分布')
         st.pyplot(fig)
         plt.close(fig)
 
@@ -434,43 +377,21 @@ def show_group_portrait():
             fig, ax = plt.subplots(figsize=(8, 4))
             ax.hist(all_scores, bins=20, alpha=0.7, color='skyblue', edgecolor='black')
             ax.axvline(current_score, color='red', linestyle='--', linewidth=2, label='您的得分')
-            ax.set_xlabel('综合得分', fontsize=10)
-            ax.set_ylabel('人数', fontsize=10)
-            ax.legend(fontsize=10)
-            ax.set_title('综合得分分布', fontsize=12)
-            plt.tight_layout()
+            ax.set_xlabel('综合得分')
+            ax.set_ylabel('人数')
+            ax.legend()
+            ax.set_title('综合得分分布')
             st.pyplot(fig)
             plt.close(fig)
 
 
 # ----------------- 主路由 -----------------
 def main():
-    st.set_page_config(
-        page_title='大学生数据素养测评系统',
-        page_icon='📊',
-        layout='wide',
-        initial_sidebar_state="expanded"
-    )
-
-    # 页面标题和说明
+    st.set_page_config(page_title='大学生数据素养测评系统', page_icon='📊', layout='wide')
     st.title('📊 大学生数据素养测评系统')
-    st.markdown("""
-    本系统基于数据素养六维模型，帮助大学生评估和提升自身的数据素养水平。
-    通过完成测评，您可以了解自己在数据认知、处理、存储、表达、践行和道德等方面的能力。
-    """)
 
     with st.sidebar:
-        st.header("导航")
-        choice = st.radio(
-            '选择功能',
-            ['指标权重', '开始测评', '查看结果', '群体画像'],
-            label_visibility="collapsed"
-        )
-        st.divider()
-        st.markdown("### 系统信息")
-        st.info(f"系统时间: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
-        st.markdown("---")
-        st.caption("© 大学生数据素养测评系统")
+        choice = st.radio('导航', ['指标权重', '开始测评', '查看结果', '群体画像'])
 
     if choice == '指标权重':
         show_weight_page()
