@@ -16,7 +16,7 @@ from matplotlib import font_manager
 
 # ----------------- 全局初始化 -----------------
 # 设置中文字体路径，确保在云环境中也能使用
-font_path = './SimHei.ttf'  # 假设字体文件与脚本在相同目录下
+font_path = '/mount/src/streamlit/simhei.ttf'  # 假设字体文件与脚本在相同目录下
 prop = font_manager.FontProperties(fname=font_path)
 
 # 让 Streamlit 在 Docker/无桌面环境也能找得到中文字体
@@ -405,3 +405,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+
