@@ -15,7 +15,7 @@ import os
 
 # ----------------- 全局初始化 -----------------
 # 让 Streamlit 在 Docker/无桌面环境也能找得到中文字体
-matplotlib.rcParams['font.sans-serif'] = ['SimHei', 'Microsoft YaHei', 'Heiti SC', 'DejaVu Sans']
+matplotlib.rcParams['font.sans-serif'] = ['simhei', 'Microsoft YaHei', 'Heiti SC', 'DejaVu Sans']
 matplotlib.rcParams['axes.unicode_minus'] = False
 
 # ----------------- 数据层 -----------------
@@ -400,3 +400,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+
