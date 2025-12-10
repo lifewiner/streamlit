@@ -12,16 +12,11 @@ import seaborn as sns
 from datetime import datetime
 import json
 import os
-from matplotlib import font_manager
 
 # ----------------- 全局初始化 -----------------
-# 设置中文字体路径，确保在云环境中也能使用
-font_path = '/mount/src/streamlit/simhei.ttf'  # 假设字体文件与脚本在相同目录下
-prop = font_manager.FontProperties(fname=font_path)
-
 # 让 Streamlit 在 Docker/无桌面环境也能找得到中文字体
-matplotlib.rcParams['font.sans-serif'] = [prop.get_name()]  # 使用 SimHei 字体
-matplotlib.rcParams['axes.unicode_minus'] = False  # 解决负号显示问题
+matplotlib.rcParams['font.sans-serif'] = ['SimHei', 'Microsoft YaHei', 'Heiti SC', 'DejaVu Sans']
+matplotlib.rcParams['axes.unicode_minus'] = False
 
 # ----------------- 数据层 -----------------
 # 一级指标与权重（已做归一，总和=1）
@@ -405,4 +400,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
