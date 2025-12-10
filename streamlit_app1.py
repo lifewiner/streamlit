@@ -7,16 +7,65 @@ import streamlit as st
 import numpy as np
 import pandas as pd
 import matplotlib
+
+# 在导入pyplot之前设置后端和字体
+matplotlib.use('agg')  # 使用agg后端，兼容性更好
 import matplotlib.pyplot as plt
 import seaborn as sns
 from datetime import datetime
 import json
 import os
+import platform
+
 
 # ----------------- 全局初始化 -----------------
-# 让 Streamlit 在 Docker/无桌面环境也能找得到中文字体
-matplotlib.rcParams['font.sans-serif'] = ['SimHei', 'Microsoft YaHei', 'Heiti SC', 'DejaVu Sans']
-matplotlib.rcParams['axes.unicode_minus'] = False
+# 解决中文字体显示问题的综合方案
+def setup_chinese_font():
+    """设置中文字体，兼容Windows、macOS和Linux/Docker环境"""
+    # 首先设置Seaborn主题
+    sns.set_theme(style="whitegrid")
+
+    # 根据操作系统设置不同的字体
+    system = platform.system()
+
+    if system == 'Windows':
+        # Windows系统常见中文字体
+        font_list = ['Microsoft YaHei', 'SimHei', 'SimSun', 'KaiTi', 'FangSong']
+        matplotlib.rcParams['font.sans-serif'] = font_list
+        matplotlib.rcParams['axes.unicode_minus'] = False
+        print(f"Windows系统: 使用字体 {font_list[0]}")
+
+    elif system == 'Darwin':
+        # macOS系统常见中文字体
+        font_list = ['Arial Unicode MS', 'PingFang SC', 'Hiragino Sans GB', 'Heiti SC']
+        matplotlib.rcParams['font.sans-serif'] = font_list
+        matplotlib.rcParams['axes.unicode_minus'] = False
+        print(f"macOS系统: 使用字体 {font_list[0]}")
+
+    else:
+        # Linux/Docker/其他系统
+        try:
+            # 尝试多种Linux系统中可能存在的字体
+            font_list = [
+                'WenQuanYi Micro Hei',
+                'Noto Sans CJK SC',
+                'DejaVu Sans',
+                'AR PL UMing CN',
+                'AR PL UKai CN',
+                'sans-serif'
+            ]
+            matplotlib.rcParams['font.sans-serif'] = font_list
+            matplotlib.rcParams['axes.unicode_minus'] = False
+            print(f"Linux/Docker系统: 使用字体 {font_list[0]}")
+        except Exception as e:
+            # 如果出错，使用默认字体
+            print(f"字体设置失败: {e}")
+            matplotlib.rcParams['font.sans-serif'] = ['DejaVu Sans']
+            matplotlib.rcParams['axes.unicode_minus'] = False
+
+
+# 调用字体设置函数
+setup_chinese_font()
 
 # ----------------- 数据层 -----------------
 # 一级指标与权重（已做归一，总和=1）
@@ -91,6 +140,7 @@ C['权重'] = C['权重'] / C['权重'].sum()  # 再次保险归一
     }
 }
 
+
 # ----------------- 数据存储 -----------------
 def load_user_data():
     """加载用户数据"""
@@ -99,15 +149,17 @@ def load_user_data():
             return json.load(f)
     return []
 
+
 def save_user_data(user_data):
     """保存用户数据"""
     with open('user_data.json', 'w', encoding='utf-8') as f:
         json.dump(user_data, f, ensure_ascii=False, indent=2)
 
+
 def add_user_record(user_info, scores, score_rates, total_score):
     """添加用户记录"""
     user_data = load_user_data()
-    
+
     record = {
         'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
         'user_info': user_info,
@@ -116,10 +168,11 @@ def add_user_record(user_info, scores, score_rates, total_score):
         'total_score': total_score,
         'dimension_names': C['维度'].tolist()
     }
-    
+
     user_data.append(record)
     save_user_data(user_data)
     return record
+
 
 # ----------------- 工具函数 -----------------
 @st.cache_data(show_spinner=False)
@@ -140,27 +193,32 @@ def calc_scores(all_answers):
     total = np.dot(scores, C['权重'].values)
     return total, scores, score_rates, pd.DataFrame(detail)
 
+
 def show_weight_page():
     st.header('数据素养指标权重')
     col1, col2 = st.columns(2)
     with col1:
-        fig, ax = plt.subplots()
+        fig, ax = plt.subplots(figsize=(8, 6))
         ax.bar(C['维度'], C['权重'], color='skyblue')
-        ax.set_ylabel('权重')
-        plt.xticks(rotation=45, ha='right')
+        ax.set_ylabel('权重', fontsize=12)
+        ax.set_title('各维度权重分布', fontsize=14)
+        plt.xticks(rotation=45, ha='right', fontsize=10)
         for i, v in enumerate(C['权重']):
-            ax.text(i, v + 0.01, f'{v:.3f}', ha='center')
+            ax.text(i, v + 0.01, f'{v:.3f}', ha='center', fontsize=9)
+        plt.tight_layout()
         st.pyplot(fig)
         plt.close(fig)
     with col2:
-        fig, ax = plt.subplots()
+        fig, ax = plt.subplots(figsize=(8, 6))
         ax.pie(C['权重'], labels=C['维度'], autopct='%.1f%%', startangle=90)
+        ax.set_title('各维度权重比例', fontsize=14)
         st.pyplot(fig)
         plt.close(fig)
 
+
 def show_test_page():
     st.header('数据素养测评')
-    
+
     # 用户信息收集
     st.subheader("个人信息")
     col1, col2, col3 = st.columns(3)
@@ -174,17 +232,17 @@ def show_test_page():
         data_exp = st.selectbox("数据相关经验", [
             "无经验", "少量课程学习", "参加过相关培训", "有项目经验", "专业领域经验丰富"
         ])
-    
+
     # 保存用户信息到session state
     st.session_state.user_info = {
         'grade': grade,
         'major': major,
         'data_exp': data_exp
     }
-    
+
     if 'answers' not in st.session_state:
         st.session_state.answers = [[] for _ in 题库]
-    
+
     tabs = st.tabs(C['维度'].tolist())
     for i, (code, tab) in enumerate(zip(题库.keys(), tabs)):
         with tab:
@@ -192,76 +250,80 @@ def show_test_page():
             for j, q in enumerate(题库[code]['Question']):
                 ans.append(st.slider(f'{q}', 1, 6, 3, key=f'{code}_{j}'))
             st.session_state.answers[i] = ans
-    
-    if st.button('提交测评', type='primary'):
+
+    if st.button('提交测评', type='primary', use_container_width=True):
         st.session_state.test_completed = True
         st.success('提交成功！请前往"查看结果"页面。')
         st.balloons()
+
 
 def show_result_page():
     st.header('测评结果')
     if not st.session_state.get('test_completed', False):
         st.warning('请先完成测评！')
         return
-    
+
     total, scores, rates, detail = calc_scores(st.session_state.answers)
     max_total = sum(np.array(题库[code]['Score']).sum() * C.loc[i, '权重'] for i, code in enumerate(题库))
-    
+
     # 保存用户记录
     if 'current_record' not in st.session_state:
         user_info = st.session_state.get('user_info', {})
         st.session_state.current_record = add_user_record(user_info, scores, rates, total)
-    
+
     # 显示个人结果
     col1, col2, col3 = st.columns(3)
     col1.metric('综合得分', f'{total:.2f}')
     col2.metric('满分', f'{max_total:.2f}')
-    col3.metric('得分率', f'{total/max_total*100:.2f}%')
-    
+    col3.metric('得分率', f'{total / max_total * 100:.2f}%')
+
     st.subheader('各维度得分')
     col1, col2 = st.columns([1, 2])
     with col1:
         st.dataframe(pd.DataFrame({'维度': C['维度'], '得分': [f'{s:.2f}' for s in scores],
                                    '得分率': [f'{r:.2f}%' for r in rates]}))
     with col2:
-        fig, ax = plt.subplots()
+        fig, ax = plt.subplots(figsize=(10, 6))
         ax.bar(C['维度'], rates, color='lightgreen')
-        ax.set_ylabel('得分率(%)')
-        plt.xticks(rotation=45, ha='right')
+        ax.set_ylabel('得分率(%)', fontsize=12)
+        ax.set_title('各维度得分率', fontsize=14)
+        plt.xticks(rotation=45, ha='right', fontsize=10)
         ax.set_ylim(0, max(100, max(rates) * 1.05))
         for i, v in enumerate(rates):
-            ax.text(i, v + 1, f'{v:.1f}%', ha='center')
+            ax.text(i, v + 1, f'{v:.1f}%', ha='center', fontsize=9)
+        plt.tight_layout()
         st.pyplot(fig)
         plt.close(fig)
-    
+
     st.subheader('详细得分')
     st.dataframe(detail, use_container_width=True)
     csv = detail.to_csv(index=False).encode('utf-8')
     st.download_button('下载 CSV', csv, '数据素养测评结果.csv', 'text/csv')
 
+
 def show_group_portrait():
     st.header('群体画像分析')
-    
+
     user_data = load_user_data()
     if not user_data:
         st.info('暂无群体数据，请先完成测评以生成群体画像')
         return
-    
+
     df = pd.DataFrame(user_data)
-    
+
     # 总体统计
     st.subheader('总体统计')
     col1, col2, col3, col4 = st.columns(4)
-    
+
     total_users = len(df)
     avg_total_score = np.mean([x['total_score'] for x in user_data])
     avg_rates = np.mean([x['score_rates'] for x in user_data], axis=0)
-    
+
     col1.metric('总测评人数', total_users)
     col2.metric('平均综合得分', f'{avg_total_score:.2f}')
     col3.metric('最高得分', f'{max([x["total_score"] for x in user_data]):.2f}')
     col4.metric('最低得分', f'{min([x["total_score"] for x in user_data]):.2f}')
-    
+
     # 维度得分分布
     st.subheader('各维度得分分布')
     dimension_data = []
@@ -272,25 +334,27 @@ def show_group_portrait():
                 '得分': score,
                 '得分率': rate
             })
-    
+
     dimension_df = pd.DataFrame(dimension_data)
-    
+
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
-    
+
     # 箱线图
     sns.boxplot(data=dimension_df, x='维度', y='得分率', ax=ax1)
-    ax1.set_xticklabels(ax1.get_xticklabels(), rotation=45, ha='right')
-    ax1.set_title('各维度得分率分布')
-    
+    ax1.set_xticklabels(ax1.get_xticklabels(), rotation=45, ha='right', fontsize=10)
+    ax1.set_title('各维度得分率分布', fontsize=14)
+    ax1.set_ylabel('得分率(%)', fontsize=12)
+
     # 小提琴图
     sns.violinplot(data=dimension_df, x='维度', y='得分率', ax=ax2)
-    ax2.set_xticklabels(ax2.get_xticklabels(), rotation=45, ha='right')
-    ax2.set_title('各维度得分率密度分布')
-    
+    ax2.set_xticklabels(ax2.get_xticklabels(), rotation=45, ha='right', fontsize=10)
+    ax2.set_title('各维度得分率密度分布', fontsize=14)
+    ax2.set_ylabel('得分率(%)', fontsize=12)
+
     plt.tight_layout()
     st.pyplot(fig)
     plt.close(fig)
-    
+
     # 专业类别分析
     st.subheader('按专业类别分析')
     major_data = []
@@ -300,16 +364,18 @@ def show_group_portrait():
                 '专业': record['user_info']['major'],
                 '综合得分': record['total_score']
             })
-    
+
     if major_data:
         major_df = pd.DataFrame(major_data)
         fig, ax = plt.subplots(figsize=(10, 6))
         sns.boxplot(data=major_df, x='专业', y='综合得分', ax=ax)
-        ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha='right')
-        ax.set_title('各专业类别综合得分分布')
+        ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha='right', fontsize=10)
+        ax.set_title('各专业类别综合得分分布', fontsize=14)
+        ax.set_ylabel('综合得分', fontsize=12)
+        plt.tight_layout()
         st.pyplot(fig)
         plt.close(fig)
-    
+
     # 年级分析
     st.subheader('按年级分析')
     grade_data = []
@@ -319,16 +385,18 @@ def show_group_portrait():
                 '年级': record['user_info']['grade'],
                 '综合得分': record['total_score']
             })
-    
+
     if grade_data:
         grade_df = pd.DataFrame(grade_data)
         fig, ax = plt.subplots(figsize=(10, 6))
         sns.boxplot(data=grade_df, x='年级', y='综合得分', ax=ax)
-        ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha='right')
-        ax.set_title('各年级综合得分分布')
+        ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha='right', fontsize=10)
+        ax.set_title('各年级综合得分分布', fontsize=14)
+        ax.set_ylabel('综合得分', fontsize=12)
+        plt.tight_layout()
         st.pyplot(fig)
         plt.close(fig)
-    
+
     # 经验水平分析
     st.subheader('按数据经验分析')
     exp_data = []
@@ -338,47 +406,72 @@ def show_group_portrait():
                 '数据经验': record['user_info']['data_exp'],
                 '综合得分': record['total_score']
             })
-    
+
     if exp_data:
         exp_df = pd.DataFrame(exp_data)
         fig, ax = plt.subplots(figsize=(10, 6))
         sns.boxplot(data=exp_df, x='数据经验', y='综合得分', ax=ax)
-        ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha='right')
-        ax.set_title('不同数据经验水平综合得分分布')
+        ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha='right', fontsize=10)
+        ax.set_title('不同数据经验水平综合得分分布', fontsize=14)
+        ax.set_ylabel('综合得分', fontsize=12)
+        plt.tight_layout()
         st.pyplot(fig)
         plt.close(fig)
-    
+
     # 显示当前用户在群体中的位置
     if 'current_record' in st.session_state:
         st.subheader('您在群体中的位置')
         current_score = st.session_state.current_record['total_score']
         all_scores = [x['total_score'] for x in user_data]
         percentile = np.sum(np.array(all_scores) <= current_score) / len(all_scores) * 100
-        
+
         col1, col2 = st.columns(2)
         with col1:
             st.metric('您的综合得分', f'{current_score:.2f}')
             st.metric('超过的用户比例', f'{percentile:.1f}%')
-        
+
         with col2:
             fig, ax = plt.subplots(figsize=(8, 4))
             ax.hist(all_scores, bins=20, alpha=0.7, color='skyblue', edgecolor='black')
             ax.axvline(current_score, color='red', linestyle='--', linewidth=2, label='您的得分')
-            ax.set_xlabel('综合得分')
-            ax.set_ylabel('人数')
-            ax.legend()
-            ax.set_title('综合得分分布')
+            ax.set_xlabel('综合得分', fontsize=10)
+            ax.set_ylabel('人数', fontsize=10)
+            ax.legend(fontsize=10)
+            ax.set_title('综合得分分布', fontsize=12)
+            plt.tight_layout()
             st.pyplot(fig)
             plt.close(fig)
 
+
 # ----------------- 主路由 -----------------
 def main():
-    st.set_page_config(page_title='大学生数据素养测评系统', page_icon='📊', layout='wide')
+    st.set_page_config(
+        page_title='大学生数据素养测评系统',
+        page_icon='📊',
+        layout='wide',
+        initial_sidebar_state="expanded"
+    )
+
+    # 页面标题和说明
     st.title('📊 大学生数据素养测评系统')
-    
+    st.markdown("""
+    本系统基于数据素养六维模型，帮助大学生评估和提升自身的数据素养水平。
+    通过完成测评，您可以了解自己在数据认知、处理、存储、表达、践行和道德等方面的能力。
+    """)
+
     with st.sidebar:
-        choice = st.radio('导航', ['指标权重', '开始测评', '查看结果', '群体画像'])
-    
+        st.header("导航")
+        choice = st.radio(
+            '选择功能',
+            ['指标权重', '开始测评', '查看结果', '群体画像'],
+            label_visibility="collapsed"
+        )
+        st.divider()
+        st.markdown("### 系统信息")
+        st.info(f"系统时间: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
+        st.markdown("---")
+        st.caption("© 大学生数据素养测评系统")
+
     if choice == '指标权重':
         show_weight_page()
     elif choice == '开始测评':
@@ -387,6 +480,7 @@ def main():
         show_result_page()
     else:
         show_group_portrait()
+
 
 if __name__ == '__main__':
     main()
